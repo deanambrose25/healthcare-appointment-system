@@ -345,18 +345,24 @@
             // Status check removed for cleaner interface
         }
 
-        async function loadAppointments() {
-            const loadingElement = document.getElementById('appointmentsLoading');
-            const listElement = document.getElementById('appointmentsList');
-            
-            loadingElement.style.display = 'block';
-            
-            // Load appointments from localStorage (demo mode)
-            const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-            displayAppointments(appointments);
-            
-            loadingElement.style.display = 'none';
-        }
+     async function loadAppointments() {
+    const loadingElement = document.getElementById('appointmentsLoading');
+    const listElement = document.getElementById('appointmentsList');
+    
+    loadingElement.style.display = 'block';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/appointments`);
+        const appointments = await response.json();
+        displayAppointments(appointments);
+    } catch (error) {
+        console.error('Error loading appointments:', error);
+        listElement.innerHTML = '<p style="color:red; text-align:center;">⚠️ Failed to load appointments from backend.</p>';
+    } finally {
+        loadingElement.style.display = 'none';
+    }
+}
+
 
         function setupFormHandlers() {
             const form = document.getElementById('appointmentForm');
@@ -369,69 +375,65 @@
                 input.addEventListener('input', clearFieldError);
             });
         }
+async function handleFormSubmission(e) {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    
+    submitBtn.disabled = true;
+    loadingIndicator.style.display = 'block';
+    hideMessages();
 
-        async function handleFormSubmission(e) {
-            e.preventDefault();
-            
-            const submitBtn = document.getElementById('submitBtn');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            
-            // Show loading state
-            submitBtn.disabled = true;
-            loadingIndicator.style.display = 'block';
-            hideMessages();
+    try {
+        const formData = new FormData(e.target);
+        const appointmentData = {
+            patientName: formData.get('patientName'),
+            email: formData.get('email'),
+            age: parseInt(formData.get('age')),
+            phone: formData.get('phone'),
+            doctorId: parseInt(formData.get('doctor')),
+            appointmentDate: formData.get('date'),
+            appointmentTime: formData.get('time'),
+            reason: formData.get('reason'),
+        };
 
-            try {
-                const formData = new FormData(e.target);
-                const appointmentData = {
-                    id: Date.now(), // Generate unique ID
-                    patientName: formData.get('patientName'),
-                    email: formData.get('email'),
-                    age: parseInt(formData.get('age')),
-                    phone: formData.get('phone'),
-                    doctorId: parseInt(formData.get('doctor')),
-                    appointmentDate: formData.get('date'),
-                    appointmentTime: formData.get('time'),
-                    reason: formData.get('reason'),
-                    status: 'SCHEDULED',
-                    createdAt: new Date().toISOString()
-                };
+        const response = await fetch(`${API_BASE_URL}/appointments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(appointmentData)
+        });
 
-                // Save to localStorage (demo mode)
-                const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-                appointments.unshift(appointmentData);
-                localStorage.setItem('appointments', JSON.stringify(appointments));
+        if (!response.ok) throw new Error("Failed to book appointment");
+        showSuccessMessage("✅ Appointment booked successfully!");
+        e.target.reset();
+        await loadAppointments();
+    } catch (error) {
+        console.error('Error booking appointment:', error);
+        showErrorMessage('Failed to book appointment. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        loadingIndicator.style.display = 'none';
+    }
+}
 
-                showSuccessMessage('Appointment booked successfully!');
-                e.target.reset();
-                await loadAppointments(); // Refresh the list
-            } catch (error) {
-                console.error('Error booking appointment:', error);
-                showErrorMessage('Failed to book appointment. Please try again.');
-            } finally {
-                submitBtn.disabled = false;
-                loadingIndicator.style.display = 'none';
-            }
-        }
 
-        async function deleteAppointment(appointmentId) {
-            if (!confirm('Are you sure you want to cancel this appointment?')) {
-                return;
-            }
+         
+       async function deleteAppointment(appointmentId) {
+    if (!confirm('Are you sure you want to cancel this appointment?')) return;
 
-            try {
-                // Remove from localStorage (demo mode)
-                const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-                const updatedAppointments = appointments.filter(apt => apt.id !== appointmentId);
-                localStorage.setItem('appointments', JSON.stringify(updatedAppointments));
+    try {
+        await fetch(`${API_BASE_URL}/appointments/${appointmentId}`, {
+            method: "DELETE"
+        });
 
-                showSuccessMessage('Appointment cancelled successfully!');
-                await loadAppointments();
-            } catch (error) {
-                console.error('Error cancelling appointment:', error);
-                showErrorMessage('Failed to cancel appointment. Please try again.');
-            }
-        }
+        showSuccessMessage('Appointment cancelled successfully!');
+        await loadAppointments();
+    } catch (error) {
+        console.error('Error cancelling appointment:', error);
+        showErrorMessage('Failed to cancel appointment.');
+    }
+}
 
         function displayAppointments(appointments) {
             const listElement = document.getElementById('appointmentsList');
@@ -527,4 +529,3 @@
     </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98ae9fb547257f7c',t:'MTc1OTg1Mjk1Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
-
